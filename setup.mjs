@@ -2,13 +2,24 @@
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createInterface } from 'node:readline/promises';
+import { stdin as input, stdout as output } from 'node:process';
 import { installSkill } from './install-skill.mjs';
 import { markWorkspace, saveDefaultWorkspace } from './lib/workspace.mjs';
 const system = dirname(fileURLToPath(import.meta.url));
 function option(args, name) { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : null; }
 function copyMissing(source, target) { if (existsSync(target)) return false; mkdirSync(dirname(target), { recursive: true }); copyFileSync(source, target); return true; }
-export function setup(args = process.argv.slice(2)) {
-  const workspace = resolve(option(args, '--workspace') ?? process.env.CAREER_OPS_WORKSPACE ?? 'career-ops-workspace');
+async function chooseWorkspace(args) {
+  const supplied = option(args, '--workspace') ?? process.env.CAREER_OPS_WORKSPACE;
+  if (supplied) return resolve(supplied);
+  const fallback = resolve('career-ops-workspace');
+  if (args.includes('--yes') || !process.stdin.isTTY) return fallback;
+  const rl = createInterface({ input, output });
+  const answer = await rl.question(`Private career workspace [${fallback}]: `); rl.close();
+  return resolve(answer.trim() || fallback);
+}
+export async function setup(args = process.argv.slice(2)) {
+  const workspace = await chooseWorkspace(args);
   markWorkspace(workspace); const config = saveDefaultWorkspace(workspace); const created = [];
   for (const [source, target] of [['config/profile.example.yml','config/profile.yml'], ['modes/_profile.template.md','modes/_profile.md'], ['modes/_custom.template.md','modes/_custom.md'], ['templates/portals.example.yml','portals.yml']]) {
     if (copyMissing(join(system, ...source.split('/')), join(workspace, ...target.split('/')))) created.push(target);
@@ -20,4 +31,7 @@ export function setup(args = process.argv.slice(2)) {
   const missing = ['cv.md', 'config/profile.yml', 'modes/_profile.md', 'portals.yml'].filter((path) => !existsSync(join(workspace, ...path.split('/'))));
   return { product: 'career-ops', system, workspace, config: config.path, created, installed, onboardingNeeded: missing.length > 0, missing };
 }
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) { try { console.log(JSON.stringify(setup(), null, 2)); } catch (error) { console.error(error.message); process.exit(1); } }
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  setup().then((result) => console.log(JSON.stringify(result, null, 2)))
+    .catch((error) => { console.error(error.message); process.exit(1); });
+}
