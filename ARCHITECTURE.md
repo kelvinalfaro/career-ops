@@ -19,6 +19,8 @@ The single most important architectural rule: **system files** and **user files*
 
 `DATA_CONTRACT.md` is the source of truth for this boundary, and `updater-migration-tests.mjs` enforces that no system path ever overlaps a user path.
 
+The fork can enforce the same boundary physically. `career-ops setup` saves an external workspace, installs `career-concierge`, and routes deterministic scripts with that workspace and explicit user-file environment variables. The concierge reads shared mode instructions from the system checkout and personalization from the workspace. This avoids copying private data into an updateable repository or synchronized disposable runtime.
+
 ## Files are canonical — databases are derived
 
 Settled doctrine ([#918](https://github.com/santifer/career-ops/issues/918)): the human-readable, git-diffable files (`data/applications.md`, `reports/`, `data/pipeline.md`) are the **permanent source of truth**. SQLite exists only as a derived index (fast queries, reindex-on-delete) and will never become a primary store — not even opt-in. The reason is ecosystem-wide: the web UI, the Go dashboard, community plugins, and thousands of fork scripts all read the files; a second canonical store would force every reader to support two modes forever. Performance work is welcome **on the derived layer**; the files stay the brain.

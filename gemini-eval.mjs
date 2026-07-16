@@ -49,6 +49,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // Paths
 // ---------------------------------------------------------------------------
 const ROOT = dirname(fileURLToPath(import.meta.url));
+const WORKSPACE = process.env.CAREER_OPS_WORKSPACE || ROOT;
 
 const PATHS = {
   // Primary evaluation logic lives in these two mode files
@@ -56,12 +57,12 @@ const PATHS = {
   oferta:      join(ROOT, 'modes', 'oferta.md'),
   // Canonical skill path referenced in Issue #344
   evaluate:    join(ROOT, '.claude', 'skills', 'career-ops', 'SKILL.md'),
-  cv:          join(ROOT, 'cv.md'),
-  profile:     join(ROOT, 'modes', '_profile.md'),
-  profileYml:  join(ROOT, 'config', 'profile.yml'),
-  reports:     join(ROOT, 'reports'),
-  tracker:     join(ROOT, 'data', 'applications.md'),
-  trackerAdditions: join(ROOT, 'batch', 'tracker-additions'),
+  cv:          join(WORKSPACE, 'cv.md'),
+  profile:     join(WORKSPACE, 'modes', '_profile.md'),
+  profileYml:  join(WORKSPACE, 'config', 'profile.yml'),
+  reports:     join(WORKSPACE, 'reports'),
+  tracker:     join(WORKSPACE, 'data', 'applications.md'),
+  trackerAdditions: join(WORKSPACE, 'batch', 'tracker-additions'),
 };
 
 // ---------------------------------------------------------------------------

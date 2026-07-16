@@ -10,6 +10,8 @@ The portfolio that goes with this system is also open source: [cv-santiago](http
 
 ## Data Contract (CRITICAL)
 
+Fork deployment note: when `CAREER_OPS_WORKSPACE` or the saved `~/.career-ops/config.json` is present, the Git checkout is system code and the resolved external folder is the user layer. Use the `career-ops` router and do not synchronize private data into a disposable runtime.
+
 There are two layers. Read `DATA_CONTRACT.md` for the full list.
 
 **User Layer (NEVER auto-updated, personalization goes HERE):**

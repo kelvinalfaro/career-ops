@@ -119,6 +119,22 @@ career-ops is the first reference implementation of [the CareerOps Manifesto](ht
 
 ## Quick Start
 
+### Fork installer with an external private workspace
+
+This fork adds an optional installable CLI and `career-concierge` skill while preserving the upstream scripts and modes:
+
+```bash
+git clone https://github.com/kelvinalfaro/career-ops.git
+cd career-ops
+npm install
+npm link
+career-ops setup --workspace /path/to/private-career-workspace --agent all
+```
+
+The checkout remains updateable system code. CVs, profiles, trackers, reports, and generated materials live in the selected workspace. Setup installs the concierge before onboarding is complete; invoke `career-concierge` and it will guide the user through any missing files reported by `career-ops doctor --json`.
+
+`--agent portable` installs the open Agent Skill to `~/.agents/skills` (also discovered by Gemini CLI). `--agent all` adds native user-scope copies for Codex, Gemini CLI, and Claude Code. The CLI resolves `--workspace`, then `CAREER_OPS_WORKSPACE`, then saved user config, then the current directory.
+
 **Fastest way — one command:**
 
 ```bash

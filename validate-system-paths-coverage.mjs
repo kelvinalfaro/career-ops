@@ -121,7 +121,7 @@ try {
   process.exit(1);
 }
 
-const orphans = tracked.filter((f) => !covered(f));
+const orphans = tracked.filter((f) => existsSync(join(ROOT, f)) && !covered(f));
 
 if (orphans.length > 0) {
   console.error('Coverage gap — tracked files not in SYSTEM_PATHS or USER_PATHS:');

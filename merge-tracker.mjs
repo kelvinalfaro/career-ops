@@ -23,7 +23,8 @@ import { roleFuzzyMatch } from './role-matcher.mjs';
 import { LEGACY_COLMAP, detectColumns, resolveScoreStatus, normalizeVia } from './tracker-parse.mjs';
 import { resolveTrackerPath, trackerLockDirFor, acquireTrackerLock, writeFileAtomic, normalizeCompany, cell } from './tracker-utils.mjs';
 
-const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
+const SYSTEM_ROOT = dirname(fileURLToPath(import.meta.url));
+const CAREER_OPS = process.env.CAREER_OPS_WORKSPACE || SYSTEM_ROOT;
 // Support both layouts: data/applications.md (boilerplate) and applications.md
 // (original). CAREER_OPS_TRACKER overrides the path (used by tests and
 // non-standard layouts). Resolution lives in tracker-utils.mjs so every tracker
@@ -702,7 +703,7 @@ trackerLock.release();
 if (VERIFY && !DRY_RUN) {
   console.log('\n--- Running verification ---');
   try {
-    execFileSync('node', [join(CAREER_OPS, 'verify-pipeline.mjs')], { stdio: 'inherit' });
+    execFileSync('node', [join(SYSTEM_ROOT, 'verify-pipeline.mjs')], { stdio: 'inherit', env: process.env });
   } catch (e) {
     process.exit(1);
   }

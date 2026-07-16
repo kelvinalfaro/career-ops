@@ -1,5 +1,11 @@
 # Changelog
 
+## Fork additions — 2026-07-16
+
+- Added an installable `career-ops` router with persistent external-workspace resolution.
+- Added `career-ops setup` and the AI-agnostic `career-concierge` skill, installable to portable, Codex, Gemini CLI, and Claude Code locations.
+- Added targeted external-workspace support to doctor, tracker, pipeline maintenance, analysis, and standalone evaluation paths while retaining upstream file and update conventions.
+
 ## [1.20.0](https://github.com/santifer/career-ops/compare/career-ops-v1.19.0...career-ops-v1.20.0) (2026-07-14)
 
 

@@ -37,6 +37,7 @@ try {
 } catch { /* dotenv optional */ }
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
+const WORKSPACE = process.env.CAREER_OPS_WORKSPACE || ROOT;
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -44,8 +45,8 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
 const PATHS = {
   shared:  join(ROOT, 'modes', '_shared.md'),
   oferta:  join(ROOT, 'modes', 'oferta.md'),
-  cv:      join(ROOT, 'cv.md'),
-  reports: join(ROOT, 'reports'),
+  cv:      join(WORKSPACE, 'cv.md'),
+  reports: join(WORKSPACE, 'reports'),
 };
 
 // ---------------------------------------------------------------------------

@@ -2,6 +2,8 @@
 
 This document defines which files belong to the **system** (auto-updatable) and which belong to the **user** (never touched by updates).
 
+In the fork's recommended deployment these layers also have separate physical locations: the Git checkout or installed package is the system layer, and a user-selected external folder is the private workspace. `~/.career-ops/config.json` records only the default workspace location; `.career-ops-workspace.json` marks the workspace. Neither contains career facts.
+
 ## User Layer (NEVER auto-updated)
 
 These files contain your personal data, customizations, and work product. Updates will NEVER modify them.

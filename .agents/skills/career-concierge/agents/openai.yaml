@@ -1,0 +1,4 @@
+interface:
+  display_name: "Career Concierge"
+  short_description: "Conversational command center for Career Ops"
+  default_prompt: "Use $career-concierge to help me decide what to do next in my career search."
