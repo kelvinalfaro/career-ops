@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.21.0](https://github.com/santifer/career-ops/compare/career-ops-v1.20.0...career-ops-v1.21.0) (2026-07-16)
+
+
+### Features
+
+* **dashboard:** manifesto shortcut, help entry and footer link ([64e81de](https://github.com/santifer/career-ops/commit/64e81dee1ee0be48475d32248b26d928089f5d50))
+* **onboarding:** route to the manifesto from the README and the first successful scan ([e3a82e0](https://github.com/santifer/career-ops/commit/e3a82e07dff4955d23dd97ea61aeccfc10810a9c))
+
+
+### Bug Fixes
+
+* **cv-template:** keep role header with its bullets when a location line is present ([#1903](https://github.com/santifer/career-ops/issues/1903)) ([66b1024](https://github.com/santifer/career-ops/commit/66b102490943d93ed3afd384b6fbc1e47c5d7d48))
+* **onboarding:** relay the manifesto note in agent-mediated updates ([0a3abed](https://github.com/santifer/career-ops/commit/0a3abeddfa66ceb2f3e63f5f951fbbcb85481a4b))
+* **scan:** quiet dotenv so --json stdout stays parseable ([#1907](https://github.com/santifer/career-ops/issues/1907)) ([2e0b29e](https://github.com/santifer/career-ops/commit/2e0b29ebd1a8a2e67c249c65aa132749c99098f9)), closes [#1906](https://github.com/santifer/career-ops/issues/1906)
+
 ## [1.20.0](https://github.com/santifer/career-ops/compare/career-ops-v1.19.0...career-ops-v1.20.0) (2026-07-14)
 
 
