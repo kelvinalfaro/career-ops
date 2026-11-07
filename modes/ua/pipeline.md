@@ -4,7 +4,7 @@
 
 ## Workflow
 
-1. **Прочитати** `data/pipeline.md` → знайти `- [ ]` в секції "Очікуючі" (або "Pendientes" / "Pending" — pipeline.md може містити заголовки будь-якою мовою)
+1. **Прочитати** `data/pipeline.md` (шукати через `grep -n -m 20 '^- \[ \] ' data/pipeline.md` і повторювати пошук після кожної партії, доки не залишаться лише пункти, залишені в Pending у цьому проході, не читати файл повністю) → знайти `- [ ]` в секції "Очікуючі" (або "Pendientes" / "Pending" — pipeline.md може містити заголовки будь-якою мовою)
 2. **Для кожного URL**:
    a. Зарезервувати наступний `REPORT_NUM` атомарно, запустивши `node reserve-report-num.mjs` (та звільнити маркер, запустивши `node reserve-report-num.mjs --release <num>` після запису звіту)
    b. **🚦 Playwright verification gate (обов'язково):** `browser_navigate` → `browser_snapshot`. Визначити: title + description + Apply button = active; тільки footer/navbar без JD = closed/inactive. **Якщо inactive** → позначити `- [!] URL — Вакансія закрита/неактивна`, пропустити цей URL, перейти до наступного.
@@ -37,6 +37,7 @@
 ## Визначення JD з URL
 
 1. **Playwright (переважно):** `browser_navigate` + `browser_snapshot`. Працює з усіма SPA.
+   - **Опційно — CLI-екстрактор (`scan.extractor: cli` у `config/profile.yml`):** натомість запустіть `node browser-extract.mjs <url>` (`--mode jd`) — компактний `{ "url", "title", "text" }`, менше токенів (залежно від порталу). У разі помилки чи відсутності **тихо** відкотіться до `browser_navigate` + `browser_snapshot`.
 2. **WebFetch (fallback):** Для статичних сторінок.
 3. **WebSearch (останній ресурс):** Пошук на вторинних порталах.
 

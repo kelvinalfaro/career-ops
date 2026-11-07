@@ -4,7 +4,7 @@ Behandler URL'er til opslag, der er samlet i `data/pipeline.md`. Kandidaten tilf
 
 ## Workflow
 
-1. **Læs** `data/pipeline.md` -> find `- [ ]`-elementer i sektionen "Afventer" / "Pending" / "Pendientes"
+1. **Læs** `data/pipeline.md` (søg med `grep -n -m 20 '^- \[ \] ' data/pipeline.md`, og søg igen efter hver omgang, indtil den kun viser elementer, du har ladet stå i Pending i denne kørsel, læs ikke hele filen) -> find `- [ ]`-elementer i sektionen "Afventer" / "Pending" / "Pendientes"
 2. **For hver afventende URL**:
    a. Reservér det næste fortløbende `REPORT_NUM` atomisk ved at køre `node reserve-report-num.mjs` (og frigiv sentinel'en ved at køre `node reserve-report-num.mjs --release <num>`, når rapporten er skrevet)
    b. **Udtræk opslaget** med Playwright (`browser_navigate` + `browser_snapshot`) -> WebFetch -> WebSearch
@@ -36,6 +36,7 @@ Behandler URL'er til opslag, der er samlet i `data/pipeline.md`. Kandidaten tilf
 ## Intelligent detektion af opslaget fra URL'en
 
 1. **Playwright (foretrukket):** `browser_navigate` + `browser_snapshot`. Fungerer med alle SPAs.
+   - **Tilvalg — CLI-udtrækker (`scan.extractor: cli` i `config/profile.yml`):** kør `node browser-extract.mjs <url>` (`--mode jd`) i stedet — kompakt `{ "url", "title", "text" }`, færre tokens (afhænger af jobportalen). **Fald stille tilbage** til `browser_navigate` + `browser_snapshot` ved fejl eller hvis den mangler.
 2. **WebFetch (fallback):** Til statiske sider, eller når Playwright ikke er tilgængelig.
 3. **WebSearch (sidste udvej):** Søg på sekundære portaler, der indekserer opslaget.
 

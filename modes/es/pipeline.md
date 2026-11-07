@@ -4,7 +4,7 @@ Procesa las URLs de ofertas acumuladas en `data/pipeline.md`. El candidato añad
 
 ## Workflow
 
-1. **Leer** `data/pipeline.md` -> encontrar los ítems `- [ ]` en la sección "Pendientes" / "Pending" / "En attente"
+1. **Leer** `data/pipeline.md` (busca con `grep -n -m 20 '^- \[ \] ' data/pipeline.md` y repite la búsqueda tras cada lote hasta que solo muestre ítems que dejaste en Pendientes en esta pasada, no leas el archivo entero) -> encontrar los ítems `- [ ]` en la sección "Pendientes" / "Pending" / "En attente"
 2. **Para cada URL pendiente**:
    a. Reservar el siguiente `REPORT_NUM` secuencial de forma atómica ejecutando `node reserve-report-num.mjs` (y liberar el sentinel ejecutando `node reserve-report-num.mjs --release <num>` una vez escrito el report)
    b. **Extraer la oferta** con Playwright (`browser_navigate` + `browser_snapshot`) -> WebFetch -> WebSearch
@@ -36,6 +36,7 @@ Procesa las URLs de ofertas acumuladas en `data/pipeline.md`. El candidato añad
 ## Detección inteligente de la oferta desde la URL
 
 1. **Playwright (preferido):** `browser_navigate` + `browser_snapshot`. Funciona con todas las SPAs.
+   - **Opcional — extractor CLI (`scan.extractor: cli` en `config/profile.yml`):** ejecuta `node browser-extract.mjs <url>` (`--mode jd`) en su lugar — `{ "url", "title", "text" }` compacto, menos tokens (según el portal). **Recurre en silencio** a `browser_navigate` + `browser_snapshot` si falla o no está disponible.
 2. **WebFetch (fallback):** Para páginas estáticas o cuando Playwright no está disponible.
 3. **WebSearch (último recurso):** Buscar en portales secundarios que indexen la oferta.
 

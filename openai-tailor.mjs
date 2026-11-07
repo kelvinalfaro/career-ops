@@ -19,7 +19,17 @@
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
-import yaml from 'js-yaml';
+import { getCareerOpsRoot, getProfilePath } from './path-resolver.mjs';
+import { loadYaml } from './lib/yaml-document.mjs';
+import { validateLockedSections, sectionKey } from './generate-pdf.mjs';
+import { readLockedSections } from './theme-style.mjs';
+import { redactIfEnabled, restoreIfEnabled } from './utils/privacy-filter.mjs';
+import { assertLlmRequestAllowed } from './lib/llm-outbound.mjs';
+import { installPiiInterceptor } from './lib/pii-interceptor.mjs';
+
+// Ambient guard over global fetch (idempotent); the explicit gate below is the
+// primary layer.
+installPiiInterceptor();
 
 try {
   const { config } = await import('dotenv');
@@ -27,18 +37,19 @@ try {
 } catch { /* dotenv optional */ }
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const WORKSPACE = process.env.CAREER_OPS_WORKSPACE || ROOT;
+const DATA_ROOT = getCareerOpsRoot();
 
 // ---------------------------------------------------------------------------
 // Paths
 // ---------------------------------------------------------------------------
 const PATHS = {
   shared:   join(ROOT, 'modes', '_shared.md'),
+  writing:  join(ROOT, 'modes', '_writing.md'),
   pdfMode:  join(ROOT, 'modes', 'pdf.md'),
-  cv:       join(WORKSPACE, 'cv.md'),
-  profile:  join(WORKSPACE, 'config', 'profile.yml'),
+  cv:       join(DATA_ROOT, 'cv.md'),
+  profile:  getProfilePath(),
   template: join(ROOT, 'templates', 'cv-template.html'),
-  output:   join(ROOT, 'output'),
+  output:   join(DATA_ROOT, 'output'),
 };
 
 // ---------------------------------------------------------------------------
@@ -114,10 +125,8 @@ if (!existsSync(reportPath)) {
 const jdText = readFileSync(jdPath, 'utf-8').trim();
 const reportText = readFileSync(reportPath, 'utf-8').trim();
 
-// Attempt to parse company slug and candidate name
+// The report filename identifies the application being tailored.
 const reportFilename = basename(reportPath);
-const match = reportFilename.match(/^\d+-([a-z0-9-]+)-\d{4}-\d{2}-\d{2}\.md$/);
-const companySlug = match ? match[1] : 'unknown-company';
 
 // ---------------------------------------------------------------------------
 // Endpoint + security guard.
@@ -175,9 +184,16 @@ function readFile(path, label, required = false) {
 console.log('\\n📂  Loading context files...');
 
 const sharedContext  = readFile(PATHS.shared, 'modes/_shared.md', false);
+// Writing guardrails (Voice DNA / Writing Style / Professional Writing) live in
+// _writing.md since #1710 — a CV-tailoring script needs them, unlike the eval
+// engines that read the eval-core _shared.md alone.
+const writingContext = readFile(PATHS.writing, 'modes/_writing.md', false);
 const pdfModeLogic   = readFile(PATHS.pdfMode, 'modes/pdf.md', false);
-const cvContent      = readFile(PATHS.cv, 'cv.md', true);
-const profileContent = readFile(PATHS.profile, 'config/profile.yml', true);
+// Opt-in privacy filter (privacy.redact_contact_info in config/profile.yml):
+// keep name/contact details out of the prompt sent to the model.
+const profileYmlRaw  = readFile(PATHS.profile, 'config/profile.yml', true);
+const cvContent      = redactIfEnabled(readFile(PATHS.cv, 'cv.md', true), profileYmlRaw);
+const profileContent = redactIfEnabled(profileYmlRaw, profileYmlRaw);
 const templateHtml   = readFile(PATHS.template, 'templates/cv-template.html', true);
 
 // ---------------------------------------------------------------------------
@@ -191,6 +207,11 @@ Your job is to apply strict anti-fabrication tailoring rules to fill in an HTML 
 SYSTEM CONTEXT (_shared.md)
 ═══════════════════════════════════════════════════════
 ${sharedContext}
+
+═══════════════════════════════════════════════════════
+WRITING GUARDRAILS (_writing.md)
+═══════════════════════════════════════════════════════
+${writingContext}
 
 ═══════════════════════════════════════════════════════
 PDF TAILORING MODE (pdf.md)
@@ -222,6 +243,25 @@ IMPORTANT OPERATING RULES FOR THIS SESSION
 6. Do NOT include markdown formatting like \`\`\`html or conversational filler. Output the raw HTML starting with <!DOCTYPE html> and ending with </html>.`;
 
 // ---------------------------------------------------------------------------
+// Prompt caching (#1709, closing the gap in #2432) — same shape as
+// openai-eval.mjs. This system prompt (shared + writing + pdf mode + HTML
+// template + cv + profile, ~15K+ tokens) is byte-identical across every
+// offer, yet was re-sent and re-billed each call.
+//
+// Host-gated on purpose: OpenAI-compatible gateways (OpenRouter, DeepSeek, …)
+// honor an ephemeral `cache_control` breakpoint on the prefix and reuse it
+// across back-to-back calls within the cache TTL. api.openai.com instead caches
+// long prefixes automatically and may reject the non-standard field, so it gets
+// a plain-string system message. Either way the prompt TEXT is unchanged.
+export function buildSystemMessage(prompt, host) {
+  if (host === 'api.openai.com') return { role: 'system', content: prompt };
+  return {
+    role: 'system',
+    content: [{ type: 'text', text: prompt, cache_control: { type: 'ephemeral' } }],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Call the OpenAI-compatible endpoint
 // ---------------------------------------------------------------------------
 const timeoutMs = parseInt(process.env.OPENAI_TIMEOUT_MS || '300000', 10);
@@ -238,18 +278,22 @@ if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
 let tailoredHtml;
 try {
+  // Privacy gate: the full serialized tailoring request is inspected before the
+  // network call. Nothing is sent when a protected value is present.
+  const requestBody = JSON.stringify({
+    model:    modelName,
+    messages: [
+      buildSystemMessage(systemPrompt, endpointHost),
+      { role: 'user',   content: `EVALUATION REPORT:\n\n${reportText}\n\nJOB DESCRIPTION:\n\n${jdText}\n\nNow, generate and output the fully filled HTML CV matching the rules above. Output ONLY raw HTML.` },
+    ],
+    stream:      false,
+    temperature: 0.2,
+  });
+  assertLlmRequestAllowed(endpoint, requestBody);
   const res = await fetch(endpoint, {
     method: 'POST',
     headers,
-    body: JSON.stringify({
-      model:    modelName,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: `EVALUATION REPORT:\n\n${reportText}\n\nJOB DESCRIPTION:\n\n${jdText}\n\nNow, generate and output the fully filled HTML CV matching the rules above. Output ONLY raw HTML.` },
-      ],
-      stream:      false,
-      temperature: 0.2,
-    }),
+    body: requestBody,
     signal: AbortSignal.timeout(timeoutMs),
   });
 
@@ -274,6 +318,10 @@ try {
 // Clean up markdown block wrapping if the LLM adds it despite instructions
 tailoredHtml = tailoredHtml.replace(/^\s*```(html)?\s*/i, '').replace(/\s*```\s*$/, '');
 
+// The model only saw placeholders when redaction is on; put the real name and
+// contact details back so the tailored CV never ships with "Candidate Name".
+tailoredHtml = restoreIfEnabled(tailoredHtml, profileYmlRaw);
+
 // ---------------------------------------------------------------------------
 // Save tailored HTML
 // ---------------------------------------------------------------------------
@@ -284,7 +332,7 @@ try {
 
   let candidateName = 'candidate';
   try {
-    const profile = yaml.load(profileContent);
+    const profile = loadYaml(profileYmlRaw);
     if (profile && profile.name) {
       candidateName = profile.name;
     }
@@ -294,18 +342,28 @@ try {
   candidateName = candidateName
     .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-  const filename = `cv-${candidateName}-${companySlug}.html`;
+  // Reports identify applications; one employer can have several requisitions
+  // with the same title. Re-tailoring one report may replace its own artifact.
+  const artifactStem = `cv-${candidateName}-${reportFilename.replace(/\.md$/i, '')}`;
+  const filename = `${artifactStem}.html`;
   const htmlPath = join(PATHS.output, filename);
+
+  const lockedKeys = readLockedSections(PATHS.profile, sectionKey);
+  const cvMarkdown = readFileSync(PATHS.cv, 'utf-8');
+  validateLockedSections(tailoredHtml, cvMarkdown, lockedKeys);
 
   writeFileSync(htmlPath, tailoredHtml, 'utf-8');
   console.log(`\n✅  Tailored HTML saved: ${htmlPath}`);
 
   // Print next steps
-  const pdfFilename = `cv-${candidateName}-${companySlug}-${new Date().toISOString().split('T')[0]}.pdf`;
+  const pdfFilename = `${artifactStem}.pdf`;
   const reportNumMatch = reportFilename.match(/^(\d+)-/);
   const reportNum = reportNumMatch ? reportNumMatch[1] : '001';
+  const pdfPaths = [`output/${filename}`, `output/${pdfFilename}`]
+    .map(path => /^[A-Za-z0-9._@+/-]+$/.test(path) ? path : `'${path.replace(/'/g, "'\\''")}'`)
+    .join(' ');
 
-  console.log(`\n📄  Next step (generate PDF):\n    node generate-pdf.mjs output/${filename} output/${pdfFilename} --format=letter --report=${reportNum}\n`);
+  console.log(`\n📄  Next step (generate PDF):\n    node generate-pdf.mjs ${pdfPaths} --format=letter --report=${reportNum}\n`);
 
 } catch (err) {
   console.warn(`⚠️   Could not save HTML: ${err.message}`);

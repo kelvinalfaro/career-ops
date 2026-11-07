@@ -4,7 +4,7 @@ Memproses URL lowongan yang menumpuk di `data/pipeline.md`. Kandidat menambahkan
 
 ## Alur kerja
 
-1. **Baca** `data/pipeline.md` -> temukan item `- [ ]` di bagian "Menunggu" / "Pending" / "Pendientes"
+1. **Baca** `data/pipeline.md` (cari dengan `grep -n -m 20 '^- \[ \] ' data/pipeline.md` dan ulangi pencarian setelah setiap batch sampai yang muncul hanya item yang Anda biarkan di Pending pada putaran ini, jangan baca seluruh file) -> temukan item `- [ ]` di bagian "Menunggu" / "Pending" / "Pendientes"
 2. **Untuk setiap URL yang menunggu**:
    a. Pesan `REPORT_NUM` urut berikutnya secara atomik dengan menjalankan `node reserve-report-num.mjs` (dan lepas sentinel dengan menjalankan `node reserve-report-num.mjs --release <num>` setelah report ditulis)
    b. **Ekstrak lowongan** dengan Playwright (`browser_navigate` + `browser_snapshot`) -> WebFetch -> WebSearch
@@ -36,6 +36,7 @@ Memproses URL lowongan yang menumpuk di `data/pipeline.md`. Kandidat menambahkan
 ## Deteksi cerdas lowongan dari URL
 
 1. **Playwright (diutamakan):** `browser_navigate` + `browser_snapshot`. Berfungsi dengan semua SPA.
+   - **Opsional — ekstraktor CLI (`scan.extractor: cli` di `config/profile.yml`):** jalankan `node browser-extract.mjs <url>` (`--mode jd`) sebagai gantinya — `{ "url", "title", "text" }` ringkas, lebih sedikit token (bergantung portal). **Kembali diam-diam** ke `browser_navigate` + `browser_snapshot` jika gagal atau tidak ada.
 2. **WebFetch (fallback):** Untuk halaman statis atau ketika Playwright tidak tersedia.
 3. **WebSearch (upaya terakhir):** Cari di portal sekunder yang mengindeks lowongan.
 

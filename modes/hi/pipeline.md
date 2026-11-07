@@ -4,7 +4,7 @@
 
 ## Workflow
 
-1. **पढ़ें** `data/pipeline.md` → "Pending" / "En attente" / "Pendientes" / "Offen" / "लंबित" section में `- [ ]` items ढूंढें
+1. **पढ़ें** `data/pipeline.md` (`grep -n -m 20 '^- \[ \] ' data/pipeline.md` से खोजें, हर batch के बाद तब तक फिर से खोजें जब तक केवल वही items न दिखें जिन्हें आपने इस run में Pending में छोड़ा है, पूरी फ़ाइल न पढ़ें) → "Pending" / "En attente" / "Pendientes" / "Offen" / "लंबित" section में `- [ ]` items ढूंढें
 2. **हर pending URL के लिए**:
    a. `node reserve-report-num.mjs` run करके atomically अगला `REPORT_NUM` reserve करें (और report लिखने के बाद `node reserve-report-num.mjs --release <num>` run करके sentinel release करें)
    b. **Offer extract करें** Playwright से (`browser_navigate` + `browser_snapshot`) → WebFetch → WebSearch
@@ -36,6 +36,7 @@
 ## URL से Offer की Intelligent Detection
 
 1. **Playwright (preferred):** `browser_navigate` + `browser_snapshot`। सभी SPAs के साथ काम करता है।
+   - **वैकल्पिक — CLI एक्सट्रैक्टर (`config/profile.yml` में `scan.extractor: cli`):** इसके बजाय `node browser-extract.mjs <url>` (`--mode jd`) चलाएँ — कॉम्पैक्ट `{ "url", "title", "text" }`, कम टोकन (पोर्टल पर निर्भर)। त्रुटि या अनुपलब्ध होने पर **चुपचाप** `browser_navigate` + `browser_snapshot` पर लौटें।
 2. **WebFetch (fallback):** Static pages के लिए या जब Playwright available न हो।
 3. **WebSearch (last resort):** Secondary portals पर search करें जो offer index करते हैं।
 
